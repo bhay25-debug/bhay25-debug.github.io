@@ -49,7 +49,56 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#fffdfb;fon
      }
    }catch(e){}
  }
- frame.addEventListener('load',()=>setTimeout(applyZoom,60));
+ function addNoSchoolQuickRecord(){
+   try{
+     const d=frame.contentDocument;
+     if(!d)return;
+     const dock=d.querySelector('.dockStaff');
+     const noSchoolCheck=d.getElementById('noSchool');
+     const reasonInput=d.getElementById('noSchoolReason');
+     const screen=d.getElementById('noSchoolScreen');
+     if(!dock||!noSchoolCheck||!reasonInput)return;
+     let style=d.getElementById('room6-noschool-style');
+     if(!style){
+       style=d.createElement('style');
+       style.id='room6-noschool-style';
+       style.textContent='.impactBtn.noSchoolQuick{border-color:#245da6}.impactBtn.noSchoolQuick.active{background:#dfeeff;border-color:#245da6;color:#183f70}';
+       d.head.appendChild(style);
+     }
+     let btn=d.getElementById('quickNoSchoolRecord');
+     if(!btn){
+       btn=d.createElement('button');
+       btn.id='quickNoSchoolRecord';
+       btn.className='impactBtn noSchoolQuick';
+       dock.appendChild(btn);
+       btn.onclick=function(){
+         const isActive=!!(screen&&screen.classList.contains('show'))||noSchoolCheck.checked;
+         if(isActive){
+           noSchoolCheck.checked=false;
+           noSchoolCheck.dispatchEvent(new Event('change',{bubbles:true}));
+           setTimeout(updateButton,30);
+           return;
+         }
+         const reason=window.prompt('Reason for no school (optional):',reasonInput.value||'Snow day');
+         if(reason===null)return;
+         reasonInput.value=(reason||'School Closed').trim();
+         reasonInput.dispatchEvent(new Event('change',{bubbles:true}));
+         noSchoolCheck.checked=true;
+         noSchoolCheck.dispatchEvent(new Event('change',{bubbles:true}));
+         setTimeout(updateButton,30);
+       };
+     }
+     function updateButton(){
+       const active=!!(screen&&screen.classList.contains('show'))||noSchoolCheck.checked;
+       btn.classList.toggle('active',active);
+       btn.textContent=active?'✓ No School Recorded':'❄ No School';
+     }
+     noSchoolCheck.addEventListener('change',()=>setTimeout(updateButton,30));
+     if(screen){new MutationObserver(updateButton).observe(screen,{attributes:true,attributeFilter:['class']});}
+     updateButton();
+   }catch(e){}
+ }
+ frame.addEventListener('load',()=>{setTimeout(applyZoom,60);setTimeout(addNoSchoolQuickRecord,120);});
  document.getElementById('larger').onclick=()=>{zoom=Math.min(1.6,Math.round((zoom+.1)*10)/10);applyZoom();};
  document.getElementById('smaller').onclick=()=>{zoom=Math.max(1,Math.round((zoom-.1)*10)/10);applyZoom();};
  document.getElementById('fullscreen').onclick=async()=>{
