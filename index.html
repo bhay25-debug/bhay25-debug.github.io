@@ -49,6 +49,42 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#fffdfb;fon
      }
    }catch(e){}
  }
+ function addAgendaFixes(){
+   try{
+     const d=frame.contentDocument;
+     if(!d)return;
+     let style=d.getElementById('room6-agenda-fixes');
+     if(!style){
+       style=d.createElement('style');
+       style.id='room6-agenda-fixes';
+       style.textContent=`
+         .slide:not([data-id="morning"]):not([data-id="station1"]):not([data-id="station2"]):not([data-id="enrich"]) .participation{display:none!important}
+         #timerClose{position:fixed!important;top:18px!important;left:18px!important;z-index:99999!important;min-width:190px!important;min-height:58px!important;padding:0 18px!important;border:4px solid #e8493a!important;border-radius:15px!important;background:#fff!important;color:#2f2d2e!important;font-size:20px!important;font-weight:900!important;box-shadow:0 8px 24px rgba(0,0,0,.35)!important}
+         .timerOverlay{overflow-y:auto!important}
+       `;
+       d.head.appendChild(style);
+     }
+     const overlay=d.getElementById('timerOverlay');
+     const close=d.getElementById('timerClose');
+     if(close){
+       close.textContent='✕ CLOSE TIMER';
+       if(!close.dataset.room6CloseFix){
+         close.dataset.room6CloseFix='1';
+         close.addEventListener('click',function(){
+           if(overlay)overlay.classList.remove('open');
+         });
+       }
+     }
+     if(!d.documentElement.dataset.room6EscapeFix){
+       d.documentElement.dataset.room6EscapeFix='1';
+       d.addEventListener('keydown',function(e){
+         if(e.key==='Escape'&&overlay&&overlay.classList.contains('open')){
+           overlay.classList.remove('open');
+         }
+       });
+     }
+   }catch(e){}
+ }
  function addNoSchoolQuickRecord(){
    try{
      const d=frame.contentDocument;
@@ -98,7 +134,7 @@ html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#fffdfb;fon
      updateButton();
    }catch(e){}
  }
- frame.addEventListener('load',()=>{setTimeout(applyZoom,60);setTimeout(addNoSchoolQuickRecord,120);});
+ frame.addEventListener('load',()=>{setTimeout(applyZoom,60);setTimeout(addAgendaFixes,90);setTimeout(addNoSchoolQuickRecord,120);});
  document.getElementById('larger').onclick=()=>{zoom=Math.min(1.6,Math.round((zoom+.1)*10)/10);applyZoom();};
  document.getElementById('smaller').onclick=()=>{zoom=Math.max(1,Math.round((zoom-.1)*10)/10);applyZoom();};
  document.getElementById('fullscreen').onclick=async()=>{
