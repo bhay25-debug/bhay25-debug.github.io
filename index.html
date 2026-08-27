@@ -5,155 +5,109 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=yes">
 <title>Room 6 Daily Agenda</title>
 <style>
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#fffdfb;font-family:Arial,Helvetica,sans-serif}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#fffdfb;font-family:Arial,Helvetica,sans-serif;color:#26364b}
 #agendaFrame{position:fixed;inset:0;width:100%;height:100%;border:0;background:#fffdfb}
-#accessBar{position:fixed;top:10px;right:10px;z-index:999999;display:flex;gap:8px;align-items:center;padding:8px;background:rgba(38,54,75,.96);border-radius:16px;box-shadow:0 4px 18px rgba(0,0,0,.25)}
-#accessBar button{border:0;border-radius:11px;background:#fff;color:#26364b;font-weight:800;font-size:20px;min-width:52px;min-height:48px;padding:8px 14px;cursor:pointer}
+.controlBar{position:fixed;top:10px;z-index:999999;display:flex;gap:8px;align-items:center;padding:8px;background:rgba(38,54,75,.97);border-radius:16px;box-shadow:0 4px 18px rgba(0,0,0,.25)}
+#dateBar{left:10px}
+#accessBar{right:10px}
+.controlBar button,.controlBar input{border:0;border-radius:11px;background:#fff;color:#26364b;font-weight:900;font-size:18px;min-height:48px;padding:8px 13px;cursor:pointer}
+#dateBar .dayArrow{background:#dfeef8;min-width:92px}
+#dateBar input{font-size:19px;min-width:175px;color:#26364b}
+#todayBtn{background:#dfeeda}
+#accessBar button{font-size:20px;min-width:52px}
 #accessBar button.full{background:#f2dda0;min-width:150px}
-#zoomLabel{color:#fff;font-size:18px;font-weight:800;min-width:58px;text-align:center}
+#zoomLabel{color:#fff;font-size:18px;font-weight:900;min-width:58px;text-align:center}
 #hideBtn{background:#dfeeda!important}
-@media(max-width:900px){#accessBar{top:6px;right:6px;padding:6px;gap:5px}#accessBar button{font-size:17px;min-height:44px;padding:6px 10px}.full{min-width:120px!important}#zoomLabel{font-size:15px}}
+#dateCaption{color:#fff;font-size:15px;font-weight:900;white-space:nowrap;margin-right:2px}
+@media(max-width:1150px){#dateCaption{display:none}.controlBar{top:6px;padding:6px;gap:5px}.controlBar button,.controlBar input{font-size:15px;min-height:42px;padding:6px 8px}#dateBar .dayArrow{min-width:54px}#dateBar input{min-width:150px}.full{min-width:110px!important}#zoomLabel{font-size:15px}}
 </style>
 </head>
 <body>
-<iframe id="agendaFrame" src="agenda.html" title="Room 6 Daily Agenda"></iframe>
-<div id="accessBar" aria-label="Display controls">
-<button type="button" id="smaller" aria-label="Make agenda smaller">A−</button>
-<span id="zoomLabel">125%</span>
-<button type="button" id="larger" aria-label="Make agenda larger">A+</button>
-<button type="button" id="fullscreen" class="full">⛶ FULL SCREEN</button>
-<button type="button" id="hideBtn" aria-label="Hide display controls">Hide</button>
+<iframe id="agendaFrame" title="Room 6 Daily Agenda"></iframe>
+<div id="dateBar" class="controlBar" aria-label="Agenda date controls">
+ <span id="dateCaption">AGENDA DATE</span>
+ <button type="button" id="prevDay" class="dayArrow" aria-label="Previous weekday">◀ PREV</button>
+ <input type="date" id="datePicker" min="2026-08-24" max="2026-09-30" aria-label="Choose agenda date">
+ <button type="button" id="nextDay" class="dayArrow" aria-label="Next weekday">NEXT ▶</button>
+ <button type="button" id="todayBtn">TODAY</button>
+</div>
+<div id="accessBar" class="controlBar" aria-label="Display controls">
+ <button type="button" id="smaller" aria-label="Make agenda smaller">A−</button>
+ <span id="zoomLabel">125%</span>
+ <button type="button" id="larger" aria-label="Make agenda larger">A+</button>
+ <button type="button" id="fullscreen" class="full">⛶ FULL SCREEN</button>
+ <button type="button" id="hideBtn" aria-label="Hide controls">Hide</button>
 </div>
 <script>
 (function(){
  const frame=document.getElementById('agendaFrame');
- const bar=document.getElementById('accessBar');
+ const accessBar=document.getElementById('accessBar');
+ const dateBar=document.getElementById('dateBar');
+ const picker=document.getElementById('datePicker');
  const label=document.getElementById('zoomLabel');
+ const MIN='2026-08-24',MAX='2026-09-30',FALLBACK='2026-08-27';
  let zoom=parseFloat(localStorage.getItem('room6-display-zoom')||'1.25');
  zoom=Math.max(1,Math.min(1.6,zoom));
+ function isoLocal(d){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`;}
+ function inRange(v){return /^2026-(08|09)-\d{2}$/.test(v)&&v>=MIN&&v<=MAX;}
+ const todayISO=isoLocal(new Date());
+ let selected=inRange(todayISO)?todayISO:(inRange(localStorage.getItem('room6-selected-date')||'')?localStorage.getItem('room6-selected-date'):FALLBACK);
+ function loadDate(v){
+   if(!inRange(v))return;
+   selected=v;picker.value=v;localStorage.setItem('room6-selected-date',v);
+   frame.src='agenda2.html?date='+encodeURIComponent(v);
+ }
+ function stepWeekday(delta){
+   const d=new Date(selected+'T12:00:00');
+   do{d.setDate(d.getDate()+delta);}while(d.getDay()===0||d.getDay()===6);
+   const v=isoLocal(d);if(inRange(v))loadDate(v);
+ }
  function applyZoom(){
    label.textContent=Math.round(zoom*100)+'%';
    localStorage.setItem('room6-display-zoom',String(zoom));
    try{
-     const d=frame.contentDocument;
-     if(!d)return;
-     d.documentElement.style.zoom=String(zoom);
-     d.body.style.margin='0';
-     d.body.style.minHeight='100vh';
+     const d=frame.contentDocument;if(!d)return;
+     d.documentElement.style.zoom=String(zoom);d.body.style.margin='0';d.body.style.minHeight='100vh';
      let s=d.getElementById('room6-accessibility-style');
-     if(!s){
-       s=d.createElement('style');
-       s.id='room6-accessibility-style';
-       s.textContent='button,input,select,textarea{font-size:max(18px,1em)!important} .btn,.button{min-height:48px!important}';
-       d.head.appendChild(s);
-     }
+     if(!s){s=d.createElement('style');s.id='room6-accessibility-style';s.textContent='button,input,select,textarea{font-size:max(18px,1em)!important}.btn,.button{min-height:48px!important}';d.head.appendChild(s);}
    }catch(e){}
  }
  function addAgendaFixes(){
    try{
-     const d=frame.contentDocument;
-     if(!d)return;
+     const d=frame.contentDocument;if(!d)return;
      let style=d.getElementById('room6-agenda-fixes');
-     if(!style){
-       style=d.createElement('style');
-       style.id='room6-agenda-fixes';
-       style.textContent=`
-         .slide:not([data-id="morning"]):not([data-id="station1"]):not([data-id="station2"]):not([data-id="enrich"]) .participation{display:none!important}
-         #timerClose{position:fixed!important;top:18px!important;left:18px!important;z-index:99999!important;min-width:190px!important;min-height:58px!important;padding:0 18px!important;border:4px solid #e8493a!important;border-radius:15px!important;background:#fff!important;color:#2f2d2e!important;font-size:20px!important;font-weight:900!important;box-shadow:0 8px 24px rgba(0,0,0,.35)!important}
-         .timerOverlay{overflow-y:auto!important}
-       `;
-       d.head.appendChild(style);
-     }
-     const overlay=d.getElementById('timerOverlay');
-     const close=d.getElementById('timerClose');
-     if(close){
-       close.textContent='✕ CLOSE TIMER';
-       if(!close.dataset.room6CloseFix){
-         close.dataset.room6CloseFix='1';
-         close.addEventListener('click',function(){
-           if(overlay)overlay.classList.remove('open');
-         });
-       }
-     }
-     if(!d.documentElement.dataset.room6EscapeFix){
-       d.documentElement.dataset.room6EscapeFix='1';
-       d.addEventListener('keydown',function(e){
-         if(e.key==='Escape'&&overlay&&overlay.classList.contains('open')){
-           overlay.classList.remove('open');
-         }
-       });
-     }
+     if(!style){style=d.createElement('style');style.id='room6-agenda-fixes';style.textContent='.slide:not([data-id="morning"]):not([data-id="station1"]):not([data-id="station2"]):not([data-id="enrich"]) .participation{display:none!important}#timerClose{position:fixed!important;top:18px!important;left:18px!important;z-index:99999!important;min-width:190px!important;min-height:58px!important;padding:0 18px!important;border:4px solid #e8493a!important;border-radius:15px!important;background:#fff!important;color:#2f2d2e!important;font-size:20px!important;font-weight:900!important;box-shadow:0 8px 24px rgba(0,0,0,.35)!important}.timerOverlay{overflow-y:auto!important}';d.head.appendChild(style);}
+     const overlay=d.getElementById('timerOverlay'),close=d.getElementById('timerClose');
+     if(close){close.textContent='✕ CLOSE TIMER';if(!close.dataset.room6CloseFix){close.dataset.room6CloseFix='1';close.addEventListener('click',()=>overlay&&overlay.classList.remove('open'));}}
    }catch(e){}
  }
  function addNoSchoolQuickRecord(){
    try{
-     const d=frame.contentDocument;
-     if(!d)return;
-     const dock=d.querySelector('.dockStaff');
-     const noSchoolCheck=d.getElementById('noSchool');
-     const reasonInput=d.getElementById('noSchoolReason');
-     const screen=d.getElementById('noSchoolScreen');
+     const d=frame.contentDocument;if(!d)return;
+     const dock=d.querySelector('.dockStaff'),noSchoolCheck=d.getElementById('noSchool'),reasonInput=d.getElementById('noSchoolReason'),screen=d.getElementById('noSchoolScreen');
      if(!dock||!noSchoolCheck||!reasonInput)return;
      let style=d.getElementById('room6-noschool-style');
-     if(!style){
-       style=d.createElement('style');
-       style.id='room6-noschool-style';
-       style.textContent='.impactBtn.noSchoolQuick{border-color:#245da6}.impactBtn.noSchoolQuick.active{background:#dfeeff;border-color:#245da6;color:#183f70}';
-       d.head.appendChild(style);
-     }
+     if(!style){style=d.createElement('style');style.id='room6-noschool-style';style.textContent='.impactBtn.noSchoolQuick{border-color:#245da6}.impactBtn.noSchoolQuick.active{background:#dfeeff;border-color:#245da6;color:#183f70}';d.head.appendChild(style);}
      let btn=d.getElementById('quickNoSchoolRecord');
-     if(!btn){
-       btn=d.createElement('button');
-       btn.id='quickNoSchoolRecord';
-       btn.className='impactBtn noSchoolQuick';
-       dock.appendChild(btn);
-       btn.onclick=function(){
-         const isActive=!!(screen&&screen.classList.contains('show'))||noSchoolCheck.checked;
-         if(isActive){
-           noSchoolCheck.checked=false;
-           noSchoolCheck.dispatchEvent(new Event('change',{bubbles:true}));
-           setTimeout(updateButton,30);
-           return;
-         }
-         const reason=window.prompt('Reason for no school (optional):',reasonInput.value||'Snow day');
-         if(reason===null)return;
-         reasonInput.value=(reason||'School Closed').trim();
-         reasonInput.dispatchEvent(new Event('change',{bubbles:true}));
-         noSchoolCheck.checked=true;
-         noSchoolCheck.dispatchEvent(new Event('change',{bubbles:true}));
-         setTimeout(updateButton,30);
-       };
-     }
-     function updateButton(){
-       const active=!!(screen&&screen.classList.contains('show'))||noSchoolCheck.checked;
-       btn.classList.toggle('active',active);
-       btn.textContent=active?'✓ No School Recorded':'❄ No School';
-     }
-     noSchoolCheck.addEventListener('change',()=>setTimeout(updateButton,30));
-     if(screen){new MutationObserver(updateButton).observe(screen,{attributes:true,attributeFilter:['class']});}
-     updateButton();
+     function updateButton(){const active=!!(screen&&screen.classList.contains('show'))||noSchoolCheck.checked;btn.classList.toggle('active',active);btn.textContent=active?'✓ No School Recorded':'❄ No School';}
+     if(!btn){btn=d.createElement('button');btn.id='quickNoSchoolRecord';btn.className='impactBtn noSchoolQuick';dock.appendChild(btn);btn.onclick=function(){const isActive=!!(screen&&screen.classList.contains('show'))||noSchoolCheck.checked;if(isActive){noSchoolCheck.checked=false;noSchoolCheck.dispatchEvent(new Event('change',{bubbles:true}));setTimeout(updateButton,30);return;}const reason=window.prompt('Reason for no school (optional):',reasonInput.value||'Snow day');if(reason===null)return;reasonInput.value=(reason||'School Closed').trim();reasonInput.dispatchEvent(new Event('change',{bubbles:true}));noSchoolCheck.checked=true;noSchoolCheck.dispatchEvent(new Event('change',{bubbles:true}));setTimeout(updateButton,30);};}
+     noSchoolCheck.addEventListener('change',()=>setTimeout(updateButton,30));if(screen)new MutationObserver(updateButton).observe(screen,{attributes:true,attributeFilter:['class']});updateButton();
    }catch(e){}
  }
- frame.addEventListener('load',()=>{setTimeout(applyZoom,60);setTimeout(addAgendaFixes,90);setTimeout(addNoSchoolQuickRecord,120);});
+ frame.addEventListener('load',()=>{setTimeout(applyZoom,60);setTimeout(addAgendaFixes,90);setTimeout(addNoSchoolQuickRecord,130);});
+ picker.onchange=()=>loadDate(picker.value);
+ document.getElementById('prevDay').onclick=()=>stepWeekday(-1);
+ document.getElementById('nextDay').onclick=()=>stepWeekday(1);
+ document.getElementById('todayBtn').onclick=()=>{if(inRange(todayISO))loadDate(todayISO);else loadDate(FALLBACK);};
  document.getElementById('larger').onclick=()=>{zoom=Math.min(1.6,Math.round((zoom+.1)*10)/10);applyZoom();};
  document.getElementById('smaller').onclick=()=>{zoom=Math.max(1,Math.round((zoom-.1)*10)/10);applyZoom();};
- document.getElementById('fullscreen').onclick=async()=>{
-   try{
-     if(!document.fullscreenElement){await document.documentElement.requestFullscreen();}
-     else{await document.exitFullscreen();}
-   }catch(e){}
- };
- document.addEventListener('fullscreenchange',()=>{
-   document.getElementById('fullscreen').textContent=document.fullscreenElement?'↙ EXIT FULL SCREEN':'⛶ FULL SCREEN';
- });
+ document.getElementById('fullscreen').onclick=async()=>{try{if(!document.fullscreenElement)await document.documentElement.requestFullscreen();else await document.exitFullscreen();}catch(e){}};
+ document.addEventListener('fullscreenchange',()=>{document.getElementById('fullscreen').textContent=document.fullscreenElement?'↙ EXIT FULL SCREEN':'⛶ FULL SCREEN';});
  document.getElementById('hideBtn').onclick=()=>{
-   bar.style.display='none';
-   const show=document.createElement('button');
-   show.id='showControls';show.textContent='Aa';show.title='Show display controls';
-   show.style.cssText='position:fixed;top:10px;right:10px;z-index:999999;border:0;border-radius:12px;background:#26364b;color:white;font-weight:800;font-size:22px;width:54px;height:48px;box-shadow:0 4px 14px rgba(0,0,0,.25);cursor:pointer';
-   show.onclick=()=>{show.remove();bar.style.display='flex';};
-   document.body.appendChild(show);
+   accessBar.style.display='none';dateBar.style.display='none';
+   const show=document.createElement('button');show.id='showControls';show.textContent='Aa';show.title='Show display and date controls';show.style.cssText='position:fixed;top:10px;right:10px;z-index:999999;border:0;border-radius:12px;background:#26364b;color:white;font-weight:900;font-size:22px;width:54px;height:48px;box-shadow:0 4px 14px rgba(0,0,0,.25);cursor:pointer';show.onclick=()=>{show.remove();accessBar.style.display='flex';dateBar.style.display='flex';};document.body.appendChild(show);
  };
+ loadDate(selected);
 })();
 </script>
 </body>
